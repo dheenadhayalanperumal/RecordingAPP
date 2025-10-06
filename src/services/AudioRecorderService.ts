@@ -1,3 +1,18 @@
+/**
+ * AudioRecorderService - Core Audio Recording Management
+ * 
+ * This service handles all aspects of audio recording including:
+ * - Starting, pausing, resuming, and stopping recordings
+ * - Managing recording state and persistence
+ * - Handling file storage and retrieval
+ * - Managing permissions and audio mode configuration
+ * - Providing real-time recording state updates
+ * 
+ * The service uses a singleton pattern to ensure consistent state
+ * across the entire application and provides comprehensive error
+ * handling and recovery mechanisms.
+ */
+
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
@@ -5,36 +20,70 @@ import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+/**
+ * RecordingState - Current state of the recording session
+ * 
+ * This interface represents the real-time state of the audio recording,
+ * including whether recording is active, paused, duration, and file information.
+ */
 export interface RecordingState {
-  isRecording: boolean;
-  isPaused: boolean;
-  duration: number;
-  uri: string | null;
-  name: string;
+  isRecording: boolean;    // Whether currently recording audio
+  isPaused: boolean;       // Whether recording is paused (but still active)
+  duration: number;        // Current recording duration in seconds
+  uri: string | null;      // File URI of the current recording
+  name: string;           // Display name of the current recording
 }
 
+/**
+ * SavedRecording - Persisted recording metadata
+ * 
+ * This interface represents a saved recording with all necessary
+ * metadata for playback, management, and display purposes.
+ */
 export interface SavedRecording {
-  id: string;
-  name: string;
-  uri: string;
-  duration: number;
-  createdAt: Date;
+  id: string;             // Unique identifier for the recording
+  name: string;           // User-friendly name for the recording
+  uri: string;            // File system URI where the audio is stored
+  duration: number;       // Total duration of the recording in seconds
+  createdAt: Date;        // Timestamp when the recording was created
 }
 
+/**
+ * AudioRecorderService - Main service class for audio recording management
+ * 
+ * This class implements the singleton pattern to provide a single instance
+ * of the audio recorder service throughout the application. It manages the
+ * complete lifecycle of audio recordings from initialization to cleanup.
+ */
 class AudioRecorderService {
+  // Core recording object from expo-av
   private recording: Audio.Recording | null = null;
+  
+  // Current recording state - tracks real-time recording information
   private recordingState: RecordingState = {
-    isRecording: false,
-    isPaused: false,
-    duration: 0,
-    uri: null,
-    name: '',
+    isRecording: false,    // Whether we're currently recording
+    isPaused: false,       // Whether recording is paused
+    duration: 0,          // Current recording duration in seconds
+    uri: null,            // File URI of the current recording
+    name: '',             // Display name of the current recording
   };
+  
+  // Timer for tracking recording duration
   private durationInterval: NodeJS.Timeout | null = null;
-  private startTime: number = 0;
-  private pausedDuration: number = 0;
+  
+  // Timing information for accurate duration calculation
+  private startTime: number = 0;        // When recording started (timestamp)
+  private pausedDuration: number = 0;   // Total time spent paused
+  
+  // Event listeners for state changes
   private listeners: ((state: RecordingState) => void)[] = [];
 
+  /**
+   * Constructor - Initializes the service and sets up audio mode
+   * 
+   * The constructor automatically initializes the audio system to ensure
+   * the service is ready for recording operations immediately.
+   */
   constructor() {
     this.initializeAudio();
   }
